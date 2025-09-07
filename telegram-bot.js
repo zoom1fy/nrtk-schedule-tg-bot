@@ -525,6 +525,10 @@ function handleDateSelection(chatId, text, state) {
 
     const formattedSchedule = formatSchedule(schedule, state.type, state.name);
 
+    if (state.isSettingMySchedule) {
+      userSelections.set(chatId, { type: state.type, name: state.name });
+    }
+
     bot.sendMessage(chatId, formattedSchedule);
     userStates.delete(chatId);
     showMainMenu(chatId, "Что-нибудь еще?");
