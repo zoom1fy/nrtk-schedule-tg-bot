@@ -219,6 +219,7 @@ function showMainMenu(chatId, message = "Выберите действие:") {
       keyboard: [
         [{ text: "📋 Моё расписание" }],
         [{ text: "👥 Группы" }, { text: "👨‍🏫 Преподаватели" }],
+        [{ text: "🔄 Сменить мою группу/преподавателя" }],
         [{ text: "🕒 График прихода" }, { text: "🌐 Сайт" }],
       ],
       resize_keyboard: true,
@@ -305,6 +306,9 @@ bot.on("message", (msg) => {
         break;
       case "🌐 Сайт":
         handleWebsite(chatId);
+        break;
+      case "🔄 Сменить мою группу/преподавателя":
+        handleChangeMySchedule(chatId);
         break;
       default:
         showMainMenu(chatId, "Пожалуйста, используйте кнопки.");
@@ -482,6 +486,12 @@ function handleTeacherSelection(chatId, teacherName, isSettingMySchedule) {
   showDateSelection(chatId, "teacher", teacherName, isSettingMySchedule);
 }
 
+function handleChangeMySchedule(chatId) {
+  userSelections.delete(chatId); // сбрасываем сохранённый выбор
+  bot.sendMessage(chatId, "❌ Текущая группа/преподаватель сброшены.");
+  promptUserType(chatId, true); // снова спрашиваем «я студент/преподаватель»
+}
+
 function handleDateSelection(chatId, text, state) {
   if (text === "⬅️ Назад") {
     // Возвращаемся к выбору группы/преподавателя
@@ -514,16 +524,6 @@ function handleDateSelection(chatId, text, state) {
     }
 
     const formattedSchedule = formatSchedule(schedule, state.type, state.name);
-
-    if (state.isSettingMySchedule) {
-      userSelections.set(chatId, { type: state.type, name: state.name });
-      //   bot.sendMessage(
-      //     chatId,
-      //     `✅ Отлично! Я запомнил ваш выбор: ${
-      //       state.type === "group" ? "группа " + state.name : state.name
-      //     }.`
-      //   );
-    }
 
     bot.sendMessage(chatId, formattedSchedule);
     userStates.delete(chatId);
