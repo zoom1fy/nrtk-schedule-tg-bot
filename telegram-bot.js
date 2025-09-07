@@ -160,21 +160,22 @@ function getTeacherSchedule(teacher, date, callback) {
 
 // --- Функции для взаимодействия с пользователем ---
 
-function formatSchedule(schedule) {
-  if (schedule.length === 0) {
+function formatSchedule(schedule, type, name) {
+  if (!Array.isArray(schedule) || schedule.length === 0) {
     return "✅ На выбранную дату занятий нет.";
   }
 
+  // заголовок: если type === "group" — показываем группу, иначе — преподавателя (если передано name, используем его)
   let result = `Расписание для ${
-    schedule[0].group_name
-      ? `группы ${schedule[0].group_name}`
-      : `преподавателя ${schedule[0].teacher}`
+    type === "group"
+      ? `группы ${schedule[0].group_name || name || "не указана"}`
+      : `преподавателя ${name || schedule[0].teacher || "не указан"}`
   }\n`;
   result += `📆 Дата: ${schedule[0].date} (${schedule[0].day})\n\n`;
 
   schedule.forEach((lesson) => {
     if (lesson.lesson_number) {
-      result += `🕒 Пара ${lesson.lesson_number || "?"}\n`;
+      result += `🕒 Пара ${lesson.lesson_number}\n`;
       if (lesson.subject) {
         result += `📚 Предмет: ${lesson.subject}\n`;
       } else {
@@ -187,16 +188,22 @@ function formatSchedule(schedule) {
       }
     }
 
-    if (lesson.classroom) {
-      result += `🚪 Аудитория: ${lesson.classroom}\n`;
-    } else {
-      result += `🚪 Аудитория: нет\n`;
-    }
+    result += lesson.classroom
+      ? `🚪 Аудитория: ${lesson.classroom}\n`
+      : `🚪 Аудитория: нет\n`;
 
-    if (schedule[0].group_name) {
-      result += `👨‍🏫 Преподаватель: ${lesson.teacher}\n`;
+    if (type === "group") {
+      // для группы покажем всех преподавателей (если есть несколько через '/')
+      const teachersList = lesson.teacher
+        ? lesson.teacher
+            .split("/")
+            .map((t) => t.trim())
+            .join(", ")
+        : "не указан";
+      result += `👨‍🏫 Преподаватель: ${teachersList}\n`;
     } else {
-      result += `👥 Группа: ${lesson.group_name}\n`;
+      // для преподавателя покажем группу
+      result += `👥 Группа: ${lesson.group_name || "не указана"}\n`;
     }
 
     result += "────────────────────\n";
@@ -506,7 +513,7 @@ function handleDateSelection(chatId, text, state) {
       return;
     }
 
-    const formattedSchedule = formatSchedule(schedule);
+    const formattedSchedule = formatSchedule(schedule, state.type, state.name);
 
     if (state.isSettingMySchedule) {
       userSelections.set(chatId, { type: state.type, name: state.name });
