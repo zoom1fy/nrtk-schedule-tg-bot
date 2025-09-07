@@ -4,16 +4,29 @@
   "description": "Telegram bot for schedule management",
   "main": "telegram-bot.js",
   "scripts": {
-    "start": "node telegram-bot.js",
+    "start": "node telegram-bot.js & node update-schedule-cron.js",
+    "init-db": "node init-db.js",
     "update": "node update-schedule.js",
-    "cron": "node update-schedule-cron.js"
+    "dev": "nodemon telegram-bot.js",
+    "first-run": "npm run init-db && npm run update",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "dotenv": "^17.2.2",
     "node-cron": "^3.0.2",
     "node-telegram-bot-api": "^0.64.0",
     "sqlite3": "^5.1.6",
     "xlsx": "^0.18.5"
-  }
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1",
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "schedule"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }

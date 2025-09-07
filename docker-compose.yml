@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  schedule-bot:
+    build: .
+    container_name: schedule-bot
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./assets:/app/assets
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
