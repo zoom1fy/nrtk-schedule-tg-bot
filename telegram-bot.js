@@ -6,7 +6,7 @@ require("dotenv").config();
 
 // --- Инициализация ---
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const DB_PATH = path.join(__dirname, "database.db");
+// const DB_PATH = path.join(__dirname, "database.db");
 
 // Проверка, что токен загрузился
 if (!TOKEN) {
@@ -17,7 +17,7 @@ if (!TOKEN) {
 }
 
 const bot = new TelegramBot(TOKEN, { polling: true });
-const db = new sqlite3.Database(DB_PATH);
+const db = require("./init-db.js");
 
 // Хранилище для временных состояний диалога
 const userStates = new Map();
@@ -282,6 +282,17 @@ bot.on("message", (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
   const state = userStates.get(chatId);
+
+  // Сохраняем chat_id в базу, если его там ещё нет
+  db.run(
+    "INSERT OR IGNORE INTO users (chat_id, last_interaction) VALUES (?, DATETIME('now'))",
+    [chatId],
+    (err) => {
+      if (err) {
+        console.error("Ошибка при сохранении пользователя:", err);
+      }
+    }
+  );
 
   if (!state) {
     switch (text) {
@@ -575,5 +586,7 @@ function handleWebsite(chatId) {
 bot.on("polling_error", (error) => {
   console.error("Polling error:", error.code);
 });
+
+module.exports = { bot };
 
 console.log("🤖 Telegram бот запущен...");

@@ -6,6 +6,8 @@ const path = require("path");
 const xlsx = require("xlsx");
 const sqlite3 = require("sqlite3").verbose();
 
+const { bot } = require("./telegram-bot"); // Импортируйте бота
+
 // URL для проверки и скачивания
 const PDF_URL =
   "https://cloud.nntc.nnov.ru/index.php/s/fYpXD39YccFB5gM/download";
@@ -13,14 +15,16 @@ const PDF_PATH = path.join(__dirname, "downloaded.pdf");
 const XLSX_PATH = path.join(__dirname, "downloaded.xlsx");
 
 // Настройки и инициализация SQLite3
-const DB_PATH = path.join(__dirname, "database.db");
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error("Ошибка при открытии базы данных SQLite3:", err.message);
-  } else {
-    console.log("Успешное подключение к базе данных SQLite3.");
-  }
-});
+// const DB_PATH = path.join(__dirname, "database.db");
+// const db = new sqlite3.Database(DB_PATH, (err) => {
+//   if (err) {
+//     console.error("Ошибка при открытии базы данных SQLite3:", err.message);
+//   } else {
+//     console.log("Успешное подключение к базе данных SQLite3.");
+//   }
+// });
+
+const db = require("./init-db.js");
 
 let lastModified = null;
 
@@ -322,6 +326,7 @@ async function checkForChangesAndDownload() {
         await fs.access(XLSX_PATH);
         console.log("XLSX файл создан, начинаем обработку...");
         await saveDataToDb(XLSX_PATH);
+        await notifyAllUsers("✅ Обнаружено изменение в расписании!");
       } catch (error) {
         console.error(
           "XLSX файл не найден после выполнения Python скрипта:",
@@ -341,7 +346,39 @@ async function manualUpdate() {
   console.log("=== Ручное обновление расписания ===");
   await checkForChangesAndDownload();
   console.log("=== Обновление завершено ===");
-  db.close();
+}
+
+async function notifyAllUsers(message) {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT chat_id FROM users", async (err, rows) => {
+      if (err) {
+        console.error("Ошибка при получении списка пользователей:", err);
+        reject(err);
+        return;
+      }
+      if (!rows || rows.length === 0) {
+        console.log("Нет пользователей для уведомления.");
+        resolve();
+        return;
+      }
+      const sendPromises = rows.map((row) => {
+        return bot
+          .sendMessage(row.chat_id, message)
+          .then(() => {
+            console.log(`Уведомление отправлено пользователю ${row.chat_id}`);
+          })
+          .catch((error) => {
+            console.error(
+              `Не удалось отправить сообщение пользователю ${row.chat_id}:`,
+              error
+            );
+          });
+      });
+      await Promise.all(sendPromises);
+      console.log(`Уведомления отправлены ${rows.length} пользователям.`);
+      resolve();
+    });
+  });
 }
 
 // Запуск при непосредственном вызове скрипта

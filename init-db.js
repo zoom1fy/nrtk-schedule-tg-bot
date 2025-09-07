@@ -3,7 +3,6 @@ const path = require("path");
 
 const DB_PATH = path.join(__dirname, "database.db");
 
-// Создаем пустую базу данных с таблицей
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error("Ошибка при создании базы данных:", err.message);
@@ -13,7 +12,8 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 });
 
 // Создаем таблицу schedules
-db.run(`
+db.run(
+  `
   CREATE TABLE IF NOT EXISTS schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT,
@@ -26,13 +26,36 @@ db.run(`
     arrival_time TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
-`, (err) => {
-  if (err) {
-    console.error("Ошибка при создании таблицы:", err.message);
-  } else {
-    console.log("Таблица 'schedules' создана или уже существует.");
+`,
+  (err) => {
+    if (err) {
+      console.error("Ошибка при создании таблицы schedules:", err.message);
+    } else {
+      console.log("Таблица 'schedules' создана или уже существует.");
+    }
   }
-  
+);
+
+// Создаем таблицу users
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS users (
+    chat_id INTEGER PRIMARY KEY,
+    last_interaction DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`,
+  (err) => {
+    if (err) {
+      console.error("Ошибка при создании таблицы users:", err.message);
+    } else {
+      console.log("Таблица 'users' создана или уже существует.");
+    }
+  }
+);
+
+// ❌ Убираем db.close() здесь!
+// ✅ Можно закрывать соединение только при завершении процесса:
+process.on("exit", () => {
   db.close((err) => {
     if (err) {
       console.error("Ошибка при закрытии базы данных:", err.message);
@@ -41,3 +64,5 @@ db.run(`
     }
   });
 });
+
+module.exports = db;
