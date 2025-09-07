@@ -152,12 +152,12 @@ function getTeacherSchedule(teacher, date, callback) {
 
 function getTeacherPartners(teacher, callback) {
   const query = `
-    SELECT DISTINCT teacher 
-    FROM schedules 
-    WHERE teacher LIKE ? 
-    AND teacher != ?
-    AND teacher LIKE '%/%'
-  `;
+  SELECT DISTINCT teacher 
+  FROM schedules 
+  WHERE teacher LIKE ? 
+  AND teacher != ?
+  AND teacher LIKE '%/%'
+  `;
 
   db.all(query, [`%${teacher}%`, teacher], (err, rows) => {
     if (err) {
@@ -187,13 +187,22 @@ function formatSchedule(schedule) {
   schedule.forEach((lesson) => {
     if (lesson.lesson_number) {
       result += `🕒 Пара ${lesson.lesson_number || "?"}\n`;
-      result += `📚 Предмет: ${lesson.subject}\n`;
+      if (lesson.subject) {
+        result += `📚 Предмет: ${lesson.subject}\n`;
+      } else {
+        result += `📚 Предмет: ⚠️Предмет не найден, перепроверьте расписание сами!\n`;
+      }
     } else {
       result += `❗ Разговоры о важном\n`;
+      if (lesson.arrival_time) {
+        result += `⏰ Время прихода: ${lesson.arrival_time}\n`;
+      }
     }
 
     if (lesson.classroom) {
       result += `🚪 Аудитория: ${lesson.classroom}\n`;
+    } else {
+      result += `🚪 Аудитория: нет\n`;
     }
 
     if (schedule[0].group_name) {
@@ -202,9 +211,6 @@ function formatSchedule(schedule) {
       result += `👥 Группа: ${lesson.group_name}\n`;
     }
 
-    if (lesson.arrival_time) {
-      result += `⏰ Время прихода: ${lesson.arrival_time}\n`;
-    }
     result += "────────────────────\n";
   });
 
@@ -505,12 +511,12 @@ function handleDateSelection(chatId, text, state) {
 
     if (state.isSettingMySchedule) {
       userSelections.set(chatId, { type: state.type, name: state.name });
-    //   bot.sendMessage(
-    //     chatId,
-    //     `✅ Отлично! Я запомнил ваш выбор: ${
-    //       state.type === "group" ? "группа " + state.name : state.name
-    //     }.`
-    //   );
+      //   bot.sendMessage(
+      //     chatId,
+      //     `✅ Отлично! Я запомнил ваш выбор: ${
+      //       state.type === "group" ? "группа " + state.name : state.name
+      //     }.`
+      //   );
     }
 
     if (state.type === "teacher") {
