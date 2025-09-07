@@ -1,3 +1,5 @@
 node_modules/
 downloaded.pdf
 downloaded.xlsx
+.env
+database.db
