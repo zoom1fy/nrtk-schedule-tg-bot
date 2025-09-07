@@ -79,19 +79,21 @@ function getAvailableDates(type, name, callback) {
     params = [name];
   } else {
     query = `
-      SELECT DISTINCT date, day FROM schedules 
-      WHERE (
-        teacher = ? 
-        OR teacher LIKE ? 
-        OR teacher LIKE ?
-        OR teacher LIKE ?
-      )
-      ORDER BY date DESC
-    `;
-    const likePattern1 = `%/${name}%`;
-    const likePattern2 = `%${name}/%`;
-    const likePattern3 = `%${name}%`;
-    params = [name, likePattern1, likePattern2, likePattern3];
+      SELECT DISTINCT date, day FROM schedules 
+      WHERE (
+        REPLACE(teacher, ' ', '') = ?
+        OR REPLACE(teacher, ' ', '') LIKE ?
+        OR REPLACE(teacher, ' ', '') LIKE ?
+        OR REPLACE(teacher, ' ', '') LIKE ?
+      )
+      ORDER BY date DESC
+    `;
+
+    const teacherClean = name.replace(/\s+/g, "");
+    const likePattern1 = `%/${teacherClean}%`;
+    const likePattern2 = `%${teacherClean}/%`;
+    const likePattern3 = `%${teacherClean}%`;
+    params = [teacherClean, likePattern1, likePattern2, likePattern3];
   }
 
   db.all(query, params, (err, rows) => {
@@ -120,54 +122,40 @@ function getGroupSchedule(group, date, callback) {
 }
 
 function getTeacherSchedule(teacher, date, callback) {
-  const query = `
-    SELECT * FROM schedules 
-    WHERE date = ? 
-    AND (
-      teacher = ? 
-      OR teacher LIKE ? 
-      OR teacher LIKE ?
-      OR teacher LIKE ?
-    )
-    ORDER BY lesson_number
-  `;
+  const teacherClean = teacher.replace(/\s+/g, "");
 
-  const likePattern1 = `%/${teacher}%`;
-  const likePattern2 = `%${teacher}/%`;
-  const likePattern3 = `%${teacher}%`;
+  console.log(teacherClean, teacher);
 
   db.all(
-    query,
-    [date, teacher, likePattern1, likePattern2, likePattern3],
+    `
+    SELECT * FROM schedules 
+    WHERE date = ? 
+      AND (
+        REPLACE(teacher, ' ', '') = ?
+        OR REPLACE(teacher, ' ', '') LIKE ?
+        OR REPLACE(teacher, ' ', '') LIKE ?
+        OR REPLACE(teacher, ' ', '') LIKE ?
+      )
+    ORDER BY lesson_number
+    `,
+    [
+      date,
+      teacherClean,
+      `%/${teacherClean}%`, // если преподаватель в конце
+      `%${teacherClean}/%`, // если преподаватель в начале
+      `%${teacherClean}%`, // общий случай
+    ],
     (err, rows) => {
       if (err) {
         console.error("Ошибка при получении расписания преподавателя:", err);
         callback([]);
       } else {
+        console.log(rows);
+
         callback(rows);
       }
     }
   );
-}
-
-function getTeacherPartners(teacher, callback) {
-  const query = `
-  SELECT DISTINCT teacher 
-  FROM schedules 
-  WHERE teacher LIKE ? 
-  AND teacher != ?
-  AND teacher LIKE '%/%'
-  `;
-
-  db.all(query, [`%${teacher}%`, teacher], (err, rows) => {
-    if (err) {
-      console.error("Ошибка при поиске партнеров преподавателя:", err);
-      callback([]);
-    } else {
-      const partners = rows.map((row) => row.teacher);
-      callback(partners);
-    }
-  });
 }
 
 // --- Функции для взаимодействия с пользователем ---
@@ -530,26 +518,9 @@ function handleDateSelection(chatId, text, state) {
       //   );
     }
 
-    if (state.type === "teacher") {
-      getTeacherPartners(state.name, (partners) => {
-        let finalMessage = formattedSchedule;
-
-        if (partners.length > 0) {
-          finalMessage += `\n📝 Этот преподаватель также ведет занятия с:\n`;
-          partners.forEach((partner) => {
-            finalMessage += `• ${partner}\n`;
-          });
-        }
-
-        bot.sendMessage(chatId, finalMessage);
-        userStates.delete(chatId);
-        showMainMenu(chatId, "Что-нибудь еще?");
-      });
-    } else {
-      bot.sendMessage(chatId, formattedSchedule);
-      userStates.delete(chatId);
-      showMainMenu(chatId, "Что-нибудь еще?");
-    }
+    bot.sendMessage(chatId, formattedSchedule);
+    userStates.delete(chatId);
+    showMainMenu(chatId, "Что-нибудь еще?");
   });
 }
 
