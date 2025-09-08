@@ -5,6 +5,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const xlsx = require("xlsx");
 const sqlite3 = require("sqlite3").verbose();
+const crypto = require("crypto");
 
 const { bot } = require("./telegram-bot"); // Импортируйте бота
 
@@ -294,50 +295,56 @@ async function runPythonScript() {
   });
 }
 
-async function checkForChangesAndDownload() {
-  console.log("Проверка изменений...");
-  try {
-    const response = await axios.head(PDF_URL);
-    const currentLastModified = response.headers["last-modified"];
+// вспомогательная функция для получения md5-хэша файла
+async function getFileHash(filePath) {
+  const buffer = await fs.readFile(filePath);
+  return crypto.createHash("md5").update(buffer).digest("hex");
+}
 
+async function checkForChangesAndDownload() {
+  console.log("🔍 Проверка изменений...");
+  try {
+    // скачиваем PDF
+    const downloadResponse = await axios.get(PDF_URL, {
+      responseType: "arraybuffer",
+    });
+    const newHash = crypto
+      .createHash("md5")
+      .update(downloadResponse.data)
+      .digest("hex");
+
+    // есть ли локальный файл
     const localFileExists = await fs
       .access(PDF_PATH)
       .then(() => true)
       .catch(() => false);
 
-    if (
-      !localFileExists ||
-      (currentLastModified && currentLastModified !== lastModified)
-    ) {
-      console.log(
-        "Обнаружены изменения или файл отсутствует. Скачивание нового файла..."
-      );
-      lastModified = currentLastModified;
+    let oldHash = null;
+    if (localFileExists) {
+      oldHash = await getFileHash(PDF_PATH);
+    }
 
-      const downloadResponse = await axios.get(PDF_URL, {
-        responseType: "arraybuffer",
-      });
+    // сравниваем хэши
+    if (!localFileExists || oldHash !== newHash) {
+      console.log("📄 Обнаружены изменения в PDF, сохраняем новый файл...");
       await fs.writeFile(PDF_PATH, downloadResponse.data);
-      console.log("PDF файл успешно скачан.");
 
+      // запускаем Python для конвертации
       await runPythonScript();
 
       try {
         await fs.access(XLSX_PATH);
-        console.log("XLSX файл создан, начинаем обработку...");
+        console.log("📊 XLSX файл создан, начинаем обновление базы...");
         await saveDataToDb(XLSX_PATH);
-        await notifyAllUsers("✅ Обнаружено изменение в расписании!");
+        await notifyAllUsers("✅ Обнаружено обновление расписания!");
       } catch (error) {
-        console.error(
-          "XLSX файл не найден после выполнения Python скрипта:",
-          error.message
-        );
+        console.error("❌ XLSX файл не найден после Python:", error.message);
       }
     } else {
-      console.log("Изменений не обнаружено.");
+      console.log("⏸ Изменений в PDF не обнаружено.");
     }
   } catch (error) {
-    console.error("Ошибка при проверке или скачивании:", error.message);
+    console.error("❌ Ошибка при проверке или скачивании:", error.message);
   }
 }
 
