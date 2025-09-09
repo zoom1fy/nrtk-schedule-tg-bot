@@ -15,16 +15,6 @@ const PDF_URL =
 const PDF_PATH = path.join(__dirname, "downloaded.pdf");
 const XLSX_PATH = path.join(__dirname, "downloaded.xlsx");
 
-// Настройки и инициализация SQLite3
-// const DB_PATH = path.join(__dirname, "database.db");
-// const db = new sqlite3.Database(DB_PATH, (err) => {
-//   if (err) {
-//     console.error("Ошибка при открытии базы данных SQLite3:", err.message);
-//   } else {
-//     console.log("Успешное подключение к базе данных SQLite3.");
-//   }
-// });
-
 const db = require("./init-db.js");
 
 let lastModified = null;
@@ -44,9 +34,6 @@ function parseSpecialExcelFormat(filePath) {
 
   // Получаем все данные в виде массива массивов
   const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-
-  console.log("Содержимое файла для отладки:");
-  console.log(JSON.stringify(jsonData.slice(0, 20), null, 2));
 
   for (let i = 0; i < jsonData.length; i++) {
     const row = jsonData[i];
@@ -69,7 +56,6 @@ function parseSpecialExcelFormat(filePath) {
         const parts = dateCell.split(" ");
         currentDay = parts[0];
         currentDate = parts.slice(1).join(" ");
-        console.log(`Установлена дата: ${currentDate}, день: ${currentDay}`);
         continue;
       }
     }
@@ -84,7 +70,6 @@ function parseSpecialExcelFormat(filePath) {
         groupCell.match(/^\d[А-Яа-я]+-\d{2}-\dуп/))
     ) {
       currentGroup = groupCell;
-      console.log(`Установлена группа: ${currentGroup}`);
       // Сбрасываем запомненные данные при смене группы
       lastSubject = "";
       lastTeacher = "";
@@ -115,12 +100,10 @@ function parseSpecialExcelFormat(filePath) {
 
       if (!subject && teacher === lastTeacher && lastSubject) {
         subject = lastSubject;
-        console.log(`Использован предыдущий предмет: ${subject}`);
       }
 
       if (!classroom && teacher === lastTeacher && subject === lastSubject) {
         classroom = lastClassroom;
-        console.log(`Использована предыдущая аудитория: ${classroom}`);
       }
 
       if (lesson_number.includes("(" || ")")) {
@@ -141,7 +124,6 @@ function parseSpecialExcelFormat(filePath) {
 
       // Проверяем, что это действительно данные
       if (record.teacher && record.group) {
-        console.log(`Добавлена запись: ${record.teacher} - ${record.subject}`);
         data.push(record);
 
         // Запоминаем предмет и преподавателя для следующих строк
