@@ -4,7 +4,11 @@
   "description": "Telegram bot for schedule management",
   "main": "telegram-bot.js",
   "scripts": {
-    "start": "node telegram-bot.js & node update-schedule-cron.js",
+    "start": "node telegram-bot.js",
+    "stop": "echo 'No operation'",
+    "restart": "echo 'No operation'",
+    "logs": "echo 'No operation'",
+    "status": "echo 'No operation'",
     "init-db": "node init-db.js",
     "update": "node update-schedule.js",
     "dev": "nodemon telegram-bot.js",

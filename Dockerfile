@@ -46,7 +46,7 @@ RUN mkdir -p assets
 ENV PATH="/app/venv/bin:$PATH"
 
 # Указываем порт (если нужно)
-EXPOSE 3000
+EXPOSE 3030
 
 # Запускаем приложение с предварительным обновлением расписания
-CMD ["sh", "-c", "npm run update && npm start"]
+CMD ["sh", "-c", "npm run update && node telegram-bot.js"]

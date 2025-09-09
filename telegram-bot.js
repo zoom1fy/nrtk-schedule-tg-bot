@@ -1,12 +1,15 @@
 const TelegramBot = require("node-telegram-bot-api");
-const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
-
+const cron = require("node-cron");
+const {
+  checkForChangesAndDownload,
+  manualUpdate,
+  db,
+} = require("./update-schedule");
 require("dotenv").config();
 
 // --- Инициализация ---
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-// const DB_PATH = path.join(__dirname, "database.db");
 
 // Проверка, что токен загрузился
 if (!TOKEN) {
@@ -17,7 +20,20 @@ if (!TOKEN) {
 }
 
 const bot = new TelegramBot(TOKEN, { polling: true });
-const db = require("./init-db.js");
+
+// Инициализация cron-задания
+cron.schedule(
+  "*/10 * * * *",
+  () => {
+    console.log("🔄 [Каждые 15 мин] Проверка обновлений...");
+    checkForChangesAndDownload(bot); // Передаем бота в качестве аргумента
+  },
+  {
+    timezone: "Europe/Moscow",
+  }
+);
+
+console.log("⏰ Планировщик обновлений запущен...");
 
 // Хранилище для временных состояний диалога
 const userStates = new Map();

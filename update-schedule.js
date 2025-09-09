@@ -7,11 +7,10 @@ const xlsx = require("xlsx");
 const sqlite3 = require("sqlite3").verbose();
 const crypto = require("crypto");
 
-const { bot } = require("./telegram-bot"); // Импортируйте бота
-
 // URL для проверки и скачивания
 const PDF_URL =
   "https://cloud.nntc.nnov.ru/index.php/s/fYpXD39YccFB5gM/download";
+
 const PDF_PATH = path.join(__dirname, "downloaded.pdf");
 const XLSX_PATH = path.join(__dirname, "downloaded.xlsx");
 
@@ -283,10 +282,9 @@ async function getFileHash(filePath) {
   return crypto.createHash("md5").update(buffer).digest("hex");
 }
 
-async function checkForChangesAndDownload() {
+async function checkForChangesAndDownload(bot) {
   console.log("🔍 Проверка изменений...");
   try {
-    // скачиваем PDF
     const downloadResponse = await axios.get(PDF_URL, {
       responseType: "arraybuffer",
     });
@@ -295,7 +293,6 @@ async function checkForChangesAndDownload() {
       .update(downloadResponse.data)
       .digest("hex");
 
-    // есть ли локальный файл
     const localFileExists = await fs
       .access(PDF_PATH)
       .then(() => true)
@@ -306,19 +303,22 @@ async function checkForChangesAndDownload() {
       oldHash = await getFileHash(PDF_PATH);
     }
 
-    // сравниваем хэши
     if (!localFileExists || oldHash !== newHash) {
       console.log("📄 Обнаружены изменения в PDF, сохраняем новый файл...");
       await fs.writeFile(PDF_PATH, downloadResponse.data);
-
-      // запускаем Python для конвертации
       await runPythonScript();
 
       try {
         await fs.access(XLSX_PATH);
         console.log("📊 XLSX файл создан, начинаем обновление базы...");
         await saveDataToDb(XLSX_PATH);
-        await notifyAllUsers("✅ Обнаружено обновление расписания!");
+        if (bot) {
+          await notifyAllUsers(bot, "✅ Обнаружено обновление расписания!");
+        } else {
+          console.log(
+            "Обнаружено обновление расписания, но бот не передан для уведомлений."
+          );
+        }
       } catch (error) {
         console.error("❌ XLSX файл не найден после Python:", error.message);
       }
@@ -335,9 +335,22 @@ async function manualUpdate() {
   console.log("=== Ручное обновление расписания ===");
   await checkForChangesAndDownload();
   console.log("=== Обновление завершено ===");
+
+  // Close the database connection
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        console.error("Ошибка при закрытии базы данных:", err);
+        reject(err);
+      } else {
+        console.log("База данных закрыта успешно.");
+        resolve();
+      }
+    });
+  });
 }
 
-async function notifyAllUsers(message) {
+async function notifyAllUsers(bot, message) {
   return new Promise((resolve, reject) => {
     db.all("SELECT chat_id FROM users", async (err, rows) => {
       if (err) {
@@ -372,7 +385,15 @@ async function notifyAllUsers(message) {
 
 // Запуск при непосредственном вызове скрипта
 if (require.main === module) {
-  manualUpdate();
+  (async () => {
+    try {
+      await manualUpdate();
+      process.exit(0); // Explicitly exit with success code
+    } catch (error) {
+      console.error("Ошибка во время обновления:", error);
+      process.exit(1); // Exit with error code if something fails
+    }
+  })();
 }
 
 // Экспортируем функции для использования в боте
